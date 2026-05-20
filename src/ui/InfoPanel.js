@@ -21,8 +21,8 @@ export class InfoPanel {
             fontStyle: 'bold'
         }).setDepth(10);
         
-        // Тип юнита
-        this.typeText = scene.add.text(750, 555, '', {
+        // Команда и тип юнита
+        this.teamText = scene.add.text(750, 555, '', {
             fontSize: '18px',
             fontFamily: 'Segoe UI',
             color: '#94a3b8',
@@ -87,16 +87,16 @@ export class InfoPanel {
         this.show();
         
         // Имя и тип
-        this.nameText.setText(unit.name + ' | ');
+        this.nameText.setText(unit.name + ' | ' + unit.type + ' | ');
         this.nameText.setColor('#e2e8f0');
         
-        const typeText = unit.type === 'player' ? 'Добрые :)' : 'Злые >:(';
-        const typeColor = unit.type === 'player' ? '#22d3ee' : '#ef4444';
+        const teamText = unit.team === 'player' ? 'Добрые :)' : 'Злые >:(';
+        const teamColor = unit.team === 'player' ? '#22d3ee' : '#ef4444';
         
-        this.typeText.setText(typeText);
-        this.typeText.setColor(typeColor);
-        this.typeText.setX(this.nameText.x + this.nameText.width + 5);
-        this.typeText.setY(this.nameText.y);
+        this.teamText.setText(teamText);
+        this.teamText.setColor(teamColor);
+        this.teamText.setX(this.nameText.x + this.nameText.width + 5);
+        this.teamText.setY(this.nameText.y);
         
         // Статы
         this.statsText.setText(
@@ -122,7 +122,7 @@ export class InfoPanel {
         this.bg.setVisible(true);
         this.title.setVisible(true);
         this.nameText.setVisible(true);
-        this.typeText.setVisible(true);
+        this.teamText.setVisible(true);
         this.statsText.setVisible(true);
         this.hpLabel.setVisible(true);
         this.hpBarBg.setVisible(true);
@@ -139,7 +139,7 @@ export class InfoPanel {
         this.bg.setVisible(false);
         this.title.setVisible(false);
         this.nameText.setVisible(false);
-        this.typeText.setVisible(false);
+        this.teamText.setVisible(false);
         this.statsText.setVisible(false);
         this.hpLabel.setVisible(false);
         this.hpBarBg.setVisible(false);
