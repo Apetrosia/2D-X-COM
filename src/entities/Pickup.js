@@ -8,6 +8,7 @@ export class Pickup {
         this.sprite = null;
     }
 
+
     applyTo(unit) {
         if (this.consumed) return;
 
@@ -30,9 +31,18 @@ export class Pickup {
             }
         }
 
+        if (this.type === 'grenade') {
+            unit.pickedUpGrenade = true;
+
+            if (this.scene.combatManager) {
+                this.scene.combatManager.showFloatingText(unit, '💣 Граната!', '#ff8800');
+            }
+        }
+
         this._destroy();
     }
 
+    
     _destroy() {
         this.consumed = true;
         if (this.sprite) {

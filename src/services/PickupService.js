@@ -8,8 +8,10 @@ export class PickupService {
         this.pickups = [];
     }
 
+
     spawnPickups() {
         this._createTextures();
+
         const tilemap = this.scene.tilemap;
         const freeTiles = [];
 
@@ -18,15 +20,17 @@ export class PickupService {
                 const tile = tilemap.getTile(x, y);
                 if (!tile) continue;
                 if (!tile.walkable) continue;       
-                if (tile.unit) continue;             
-                if (tile.pickup) continue;          
+                if (tile.unit) continue;            
+                if (tile.pickup) continue;           
                 freeTiles.push(tile);
             }
         }
 
         if (freeTiles.length === 0) return;
+
         this._shuffle(freeTiles);
-        const count = { medkit: 3, attack_boost: 2 };
+
+        const count = { medkit: 3, attack_boost: 2, grenade: 2 };
         let index = 0;
 
         for (const [type, amount] of Object.entries(count)) {
@@ -36,12 +40,15 @@ export class PickupService {
         }
     }
 
+
     _placePickup(tile, type) {
         const { x, y } = this.scene.tilemap.gridToWorld(tile.gridX, tile.gridY);
 
         const pickup = new Pickup(this.scene, tile, type);
 
-        const textureKey = type === 'medkit' ? 'pickup_medkit' : 'pickup_attack';
+        const textureKey =
+            type === 'medkit' ? 'pickup_medkit' :
+            type === 'grenade' ? 'pickup_grenade' : 'pickup_attack';
         const sprite = this.scene.add.sprite(x, y, textureKey).setDepth(1);
 
         this.scene.tweens.add({
@@ -58,6 +65,7 @@ export class PickupService {
         this.pickups.push(pickup);
     }
 
+
     _createTextures() {
         if (!this.scene.textures.exists('pickup_medkit')) {
             const g = this.scene.add.graphics();
@@ -66,8 +74,8 @@ export class PickupService {
             g.fillRoundedRect(0, 0, 24, 20, 4);
 
             g.fillStyle(0xef4444);
-            g.fillRect(9, 3, 6, 14);  
-            g.fillRect(4, 7, 16, 6);    
+            g.fillRect(9, 3, 6, 14);   
+            g.fillRect(4, 7, 16, 6);   
 
             g.generateTexture('pickup_medkit', 24, 20);
             g.destroy();
@@ -87,7 +95,24 @@ export class PickupService {
             g.generateTexture('pickup_attack', 24, 20);
             g.destroy();
         }
+
+        if (!this.scene.textures.exists('pickup_grenade')) {
+            const g = this.scene.add.graphics();
+
+            g.fillStyle(0x555555);
+            g.fillCircle(10, 11, 9);
+
+            g.fillStyle(0xff8800);
+            g.fillRect(3, 8, 14, 5);
+
+            g.fillStyle(0xffff00);
+            g.fillRect(8, 0, 4, 5);
+
+            g.generateTexture('pickup_grenade', 20, 24);
+            g.destroy();
+        }
     }
+
 
     _shuffle(arr) {
         for (let i = arr.length - 1; i > 0; i--) {
