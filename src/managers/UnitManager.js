@@ -45,6 +45,7 @@ export class UnitManager {
                 { name: 'Алинг', hp: 30, attack: 20, defense: 10, accuracy: 60, role: "swarm" }
             ],
             sniper: { name: 'Вражеский снайпер', hp: 70, ap: 2, attack: 16, defense: 4, accuracy: 85, role: 'sniper' },
+            sniper: { name: 'Вражеский снайпер2', hp: 70, ap: 2, attack: 16, defense: 4, accuracy: 85, role: 'sniper2' },
             brute: { name: 'Толстяк', hp: 130, ap: 1, attack: 22, defense: 8, accuracy: 60, role: 'brute' },
             mage: { name: 'Маг', hp: 80, ap: 2, attack: 8, defense: 4, accuracy: 70, role: 'support', textureKey: 'enemy_support_unit' },
             summoner: { name: 'Призыватель', hp: 60, ap: 2, attack: 6, defense: 4, accuracy: 60, role: 'summoner', moveRange: 2, maxSummonedUnits: 3,minionRoles: ['swarm'],minionConfigs: [{ 
