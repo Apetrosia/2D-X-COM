@@ -11,7 +11,9 @@ export class UIManager {
 
     updateHelpText() {
         const phase = this.scene.phase;
-        if (phase === 'player') {
+        if (this.scene.gameOver || phase === 'result') {
+            this.scene.helpText.setText('Бой завершен');
+        } else if (phase === 'player') {
             if (!this.scene.selectedUnit) this.scene.helpText.setText('Выберите бойца');
             else if (this.scene.actionMode) this.scene.helpText.setText('Выберите цель');
             else this.scene.helpText.setText('Переместитесь или выберите действие');

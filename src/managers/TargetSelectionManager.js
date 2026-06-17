@@ -5,6 +5,7 @@ export class TargetSelectionManager {
 
     startAction(action) {
         const unit = this.scene.selectedUnit;
+        if (this.scene.gameOver) return;
         if (!unit || this.scene.phase !== 'player') return;
 
         if (action === 'grenade') {
@@ -90,6 +91,7 @@ export class TargetSelectionManager {
     }
 
     executeAction(action, target) {
+        if (this.scene.gameOver) return;
         this.clearTargetHighlights();
         this.setUnitsInteractive(true);
         this.scene.actionMode = null;
@@ -110,7 +112,9 @@ export class TargetSelectionManager {
             }
         }
 
-        this.scene.turnManager.endUnitTurn(unit);
+        if (!this.scene.gameOver) {
+            this.scene.turnManager.endUnitTurn(unit);
+        }
     }
 
     clearTargetHighlights() {
@@ -132,6 +136,7 @@ export class TargetSelectionManager {
 
     startGrenadeThrowMode() {
         const unit = this.scene.selectedUnit;
+        if (this.scene.gameOver) return;
         if (!unit || !unit.pickedUpGrenade || this.scene.phase !== 'player') return;
 
         this.scene.actionMode = 'grenade';
@@ -188,6 +193,7 @@ export class TargetSelectionManager {
     }
 
     _executeGrenadeThrow(unit, targetTile) {
+        if (this.scene.gameOver) return;
         this.clearTargetHighlights();
         this.clearActionRange();
         this._clearGrenadePreview();
@@ -196,6 +202,8 @@ export class TargetSelectionManager {
 
         unit.endTurn();
         this.scene.combatManager.performGrenadeAttack(unit, targetTile);
-        this.scene.turnManager.endUnitTurn(unit);
+        if (!this.scene.gameOver) {
+            this.scene.turnManager.endUnitTurn(unit);
+        }
     }
 }

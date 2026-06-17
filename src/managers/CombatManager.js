@@ -15,6 +15,7 @@ export class CombatManager {
     }
 
     performRangedAttack(attacker, defender) {
+        if (this.scene.gameOver || !attacker?.isAlive || !defender?.isAlive) return;
 
         this.scene.combatVFX.playBulletShot(
             attacker,
@@ -41,6 +42,8 @@ export class CombatManager {
     }
 
     performSniperShot(attacker, defender) {
+        if (this.scene.gameOver || !attacker?.isAlive || !defender?.isAlive) return;
+
         this.scene.combatVFX.playSniperShot(
             attacker,
             defender
@@ -72,6 +75,8 @@ export class CombatManager {
     }
 
     performMeleeAttack(attacker, defender) {
+        if (this.scene.gameOver || !attacker?.isAlive || !defender?.isAlive) return;
+
         this.scene.combatVFX.playMeleeHit(
             attacker,
             defender
@@ -85,6 +90,8 @@ export class CombatManager {
     }
 
     performHeal(medic, patient) {
+        if (this.scene.gameOver || !medic?.isAlive || !patient?.isAlive) return;
+
         const heal = 25;
         patient.hp = Math.min(patient.maxHp, patient.hp + heal);
         this.showFloatingText(patient, `+${heal}`, '#22c55e');
@@ -105,6 +112,7 @@ export class CombatManager {
     }
 
     performGrenadeAttack(attacker, centerTile) {
+        if (this.scene.gameOver || !attacker?.isAlive) return;
         if (!attacker.pickedUpGrenade) return;
 
         attacker.pickedUpGrenade = false;
@@ -126,6 +134,7 @@ export class CombatManager {
 
         const GRENADE_DAMAGE = 20;
         affectedTiles.forEach(tile => {
+            if (this.scene.gameOver) return;
             if (tile.unit && tile.unit.isAlive && tile.unit !== attacker) {
                 tile.unit.hp -= GRENADE_DAMAGE;
                 tile.unit.lastAttacker = attacker;

@@ -875,15 +875,22 @@ export class UnitManager {
     }
 
     killUnit(unit) {
+        if (!unit || unit._isKilled || this.scene.gameOver) return;
+        unit._isKilled = true;
         unit.hp = 0;
         unit.actionsLeft = 0;
+        unit.onKilled?.();
         unit.setTile(null);
         unit.sprite.setVisible(false);
         unit.marker.setVisible(false);
         unit.nameLabel.setVisible(false);
         if (unit.type === 'enemy') {
             const points = this._getKillPoints(unit);
-            this.scene.addScore(points);
+            if (this.scene.recordEnemyKill) {
+                this.scene.recordEnemyKill(unit, points);
+            } else {
+                this.scene.addScore(points);
+            }
         }
         this.scene.checkWinLose();
     }

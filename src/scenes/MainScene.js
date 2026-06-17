@@ -18,6 +18,7 @@ import { AIOrchestrator } from '../AI/AIOrchestrator.js';
 import { AudioManager } from '../managers/AudioManager.js';
 import { TILE_TYPES } from '../entities/Tile.js';
 import { PickupService } from '../services/PickupService.js';
+import { GameResultOverlay } from '../ui/GameResultOverlay.js';
 
 export class MainScene extends Phaser.Scene {
     constructor() {
@@ -34,6 +35,15 @@ export class MainScene extends Phaser.Scene {
         this.isPaused = false;
         this.gameOver = false;
         this.score = 0;
+        this.battleStats = {
+            enemiesKilled: 0,
+            killScore: 0,
+            rounds: 1,
+            survivorBonus: 0,
+            victoryBonus: 0,
+            defeatPenalty: 0
+        };
+        this.resultOverlay = null;
         this.pauseOverlay = null;
         this.pauseMenuContainer = null;
     }
@@ -86,6 +96,8 @@ export class MainScene extends Phaser.Scene {
         this.scoreText = this.add.text(1100, 30, 'Очки: 0', {
             fontSize: '18px', fontFamily: 'Segoe UI', color: '#fbbf24', fontStyle: 'bold'
         }).setOrigin(0, 1).setDepth(10);
+        this.updateScoreText();
+        this.createResultDemoButtons();
 
         this.fogOfWar = new FogOfWar(this, this.tilemap, { visionRange: 7 });
         this.fogOfWar.render();
@@ -146,6 +158,7 @@ export class MainScene extends Phaser.Scene {
 
     togglePause() {
         console.log('togglePause вызван, isPaused:', this.isPaused);
+        if (this.gameOver) return;
 
         if (!this.isPaused) {
             this.isPaused = true;
@@ -219,9 +232,59 @@ export class MainScene extends Phaser.Scene {
         this.uiManager.createHelpText();
     }
 
+    createResultDemoButtons() {
+        this.createResultDemoButton(1136, 62, 'Экран победы', true, 0x155e75, 0x22d3ee);
+        this.createResultDemoButton(1136, 96, 'Экран поражения', false, 0x7f1d1d, 0xef4444);
+    }
+
+    createResultDemoButton(x, y, text, isVictory, fillColor, strokeColor) {
+        const buttonBg = this.add.rectangle(x, y, 178, 28, fillColor, 0.92)
+            .setStrokeStyle(1, strokeColor, 0.9)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(1000);
+
+        const buttonText = this.add.text(x, y, text, {
+            fontSize: '13px',
+            fontFamily: 'Segoe UI',
+            fontStyle: 'bold',
+            color: '#ffffff'
+        }).setOrigin(0.5).setDepth(1001);
+
+        buttonBg.on('pointerover', () => {
+            buttonBg.setFillStyle(strokeColor, 1);
+            buttonText.setColor('#020617');
+        });
+        buttonBg.on('pointerout', () => {
+            buttonBg.setFillStyle(fillColor, 0.92);
+            buttonText.setColor('#ffffff');
+        });
+        buttonBg.on('pointerdown', () => this.showDemoResult(isVictory));
+    }
+
+    showDemoResult(isVictory) {
+        if (this.gameOver) return;
+
+        const unitsToKill = isVictory
+            ? [...this.unitManager.getEnemyUnits(true)]
+            : [...this.unitManager.getPlayerUnits(true)];
+
+        if (unitsToKill.length === 0) {
+            this.finishGame(isVictory);
+            return;
+        }
+
+        unitsToKill.forEach(unit => {
+            if (!this.gameOver) {
+                this.unitManager.killUnit(unit);
+            }
+        });
+    }
+
     selectUnit(unit) {
+        if (this.gameOver) return;
         if (this.phase !== 'player') return;
         if (this.actionMode) return;
+        if (!unit?.isAlive || unit.type !== 'player') return;
 
         if (this.selectedUnit) {
             this.selectedUnit.deselect();
@@ -243,14 +306,17 @@ export class MainScene extends Phaser.Scene {
     }
 
     startAction(action) {
+        if (this.gameOver) return;
         this.targetManager.startAction(action);
     }
 
     skipUnitTurn() {
+        if (this.gameOver) return;
         this.turnManager.skipUnitTurn();
     }
 
     clearSelection() {
+        if (this.gameOver) return;
         this.turnManager.clearSelection();
     }
 
@@ -259,19 +325,92 @@ export class MainScene extends Phaser.Scene {
         const aliveEnemies = this.unitManager.getEnemyUnits(true).length;
         const alivePlayers = this.unitManager.getPlayerUnits(true).length;
         if (aliveEnemies === 0) {
-            this.gameOver = true;
-            this.score += alivePlayers * 25;
-            this.scoreText.setText(`Очки: ${this.score}`);
-            this.showGameResult(true);
+            this.finishGame(true);
         } else if (alivePlayers === 0) {
-            this.gameOver = true;
-            this.showGameResult(false);
+            this.finishGame(false);
         }
+    }
+
+    finishGame(isVictory) {
+        if (this.gameOver) return;
+
+        this.gameOver = true;
+        this.phase = 'result';
+        const result = this.calculateBattleResult(isVictory);
+        this.score = result.finalScore;
+        this.updateScoreText();
+        this.freezeGameAfterResult();
+        this.showGameResult(result);
+    }
+
+    freezeGameAfterResult() {
+        this.time.removeAllEvents();
+        this.actionMode = null;
+
+        if (this.selectedUnit) {
+            this.selectedUnit.deselect();
+            this.selectedUnit = null;
+        }
+
+        this.movementManager?.clearHighlights();
+        this.targetManager?.clearTargetHighlights();
+        this.targetManager?.clearActionRange();
+        this.targetManager?.setUnitsInteractive(false);
+        this.infoPanel?.hide();
+        this.uiManager?.updateHelpText();
+
+        this.unitManager?.getUnits(false).forEach(unit => {
+            unit.actionsLeft = 0;
+        });
+    }
+
+    calculateBattleResult(isVictory) {
+        const alivePlayers = this.unitManager.getPlayerUnits(true).length;
+        const killScore = this.battleStats.killScore;
+        const survivorBonus = isVictory ? alivePlayers * 25 : 0;
+        const victoryBonus = isVictory ? 100 : 0;
+        const scoreBeforePenalty = killScore + survivorBonus + victoryBonus;
+        const finalScore = isVictory ? scoreBeforePenalty : Math.floor(killScore * 0.5);
+        const defeatPenalty = isVictory ? 0 : killScore - finalScore;
+
+        this.battleStats.survivorBonus = survivorBonus;
+        this.battleStats.victoryBonus = victoryBonus;
+        this.battleStats.defeatPenalty = defeatPenalty;
+
+        const statsRows = [
+            { label: 'Уничтожено врагов', value: `${this.battleStats.enemiesKilled}` },
+            { label: 'Осталось союзников', value: `${alivePlayers}` },
+            { label: 'Раундов сыграно', value: `${this.battleStats.rounds}` },
+            { label: 'Очки за уничтожение', value: `+${killScore}`, color: '#fbbf24' }
+        ];
+
+        if (isVictory) {
+            statsRows.push(
+                { label: 'Бонус за победу', value: `+${victoryBonus}`, color: '#22d3ee', important: true },
+                { label: 'Бонус за выживших', value: `+${survivorBonus}`, color: '#22c55e', important: true }
+            );
+        } else {
+            statsRows.push({
+                label: 'Штраф за поражение',
+                value: `-${defeatPenalty} (-50%)`,
+                color: '#ef4444',
+                important: true
+            });
+        }
+
+        return {
+            isVictory,
+            title: isVictory ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ',
+            reason: isVictory ? 'Все враги уничтожены' : 'Все бойцы потеряны',
+            finalScore,
+            rating: this.getRating(finalScore),
+            statsRows
+        };
     }
 
     addScore(points) {
         this.score += points;
-        this.scoreText.setText(`Очки: ${this.score}`);
+        this.updateScoreText();
         this.tweens.add({
             targets: this.scoreText,
             scale: { from: 1.4, to: 1 },
@@ -280,70 +419,31 @@ export class MainScene extends Phaser.Scene {
         });
     }
 
+    recordEnemyKill(unit, points) {
+        this.battleStats.enemiesKilled += 1;
+        this.battleStats.killScore += points;
+        this.addScore(points);
+    }
+
+    registerNewRound() {
+        if (this.gameOver) return;
+        this.battleStats.rounds += 1;
+    }
+
+    updateScoreText() {
+        this.scoreText?.setText(`Очки: ${this.score}`);
+    }
+
     getRating(score) {
-        if (score >= 200) return { letter: 'S', color: '#ffd700' };
-        if (score >= 150) return { letter: 'A', color: '#22d3ee' };
-        if (score >= 100) return { letter: 'B', color: '#22c55e' };
-        if (score >= 50)  return { letter: 'C', color: '#eab308' };
+        if (score >= 300) return { letter: 'S', color: '#facc15' };
+        if (score >= 220) return { letter: 'A', color: '#22d3ee' };
+        if (score >= 150) return { letter: 'B', color: '#22c55e' };
+        if (score >= 80)  return { letter: 'C', color: '#eab308' };
         return            { letter: 'D', color: '#ef4444' };
     }
 
-    showGameResult(isVictory) {
-        const depth = 2000;
-
-        this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.85)
-            .setDepth(depth)
-            .setInteractive();
-
-        const titleText = isVictory ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
-        const titleColor = isVictory ? '#22d3ee' : '#ef4444';
-        const titleStroke = isVictory ? '#0e7490' : '#991b1b';
-
-        this.add.text(640, 220, titleText, {
-            fontSize: '72px',
-            fontFamily: 'Arial Black',
-            color: titleColor,
-            stroke: titleStroke,
-            strokeThickness: 6
-        }).setOrigin(0.5).setDepth(depth + 1);
-
-        const subText = isVictory ? 'Все враги уничтожены' : 'Все союзники погибли';
-        this.add.text(640, 310, subText, {
-            fontSize: '28px',
-            fontFamily: 'Arial',
-            color: '#cccccc'
-        }).setOrigin(0.5).setDepth(depth + 1);
-
-        const finalScore = isVictory ? this.score : Math.floor(this.score * 0.5);
-        const rating = this.getRating(finalScore);
-
-        this.add.text(640, 370, `Очки: ${finalScore}`, {
-            fontSize: '36px',
-            fontFamily: 'Arial',
-            color: '#fbbf24',
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(depth + 1);
-
-        this.add.text(640, 420, `Рейтинг: ${rating.letter}`, {
-            fontSize: '52px',
-            fontFamily: 'Arial Black',
-            color: rating.color,
-            stroke: '#000000',
-            strokeThickness: 3
-        }).setOrigin(0.5).setDepth(depth + 1);
-
-        const menuBtn = this.add.text(640, 500, 'Главное меню', {
-            fontSize: '32px',
-            color: '#ffffff',
-            backgroundColor: '#4a4a6a',
-            padding: { x: 24, y: 12 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(depth + 1);
-
-        menuBtn.on('pointerdown', () => {
-            this.scene.stop('MainScene');
-            this.scene.start('MainMenu');
-        });
-        menuBtn.on('pointerover', () => menuBtn.setStyle({ backgroundColor: '#6a6a8a' }));
-        menuBtn.on('pointerout', () => menuBtn.setStyle({ backgroundColor: '#4a4a6a' }));
+    showGameResult(result) {
+        this.resultOverlay = new GameResultOverlay(this);
+        this.resultOverlay.show(result);
     }
 }

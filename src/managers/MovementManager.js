@@ -4,6 +4,7 @@ export class MovementManager {
     }
 
     showMoveRange(unit) {
+        if (this.scene.gameOver) return;
         this.clearHighlights();
         const pathfinder = this.scene.pathfinder;
         const tilemap = this.scene.tilemap;
@@ -18,6 +19,7 @@ export class MovementManager {
     }
 
     moveUnitTo(unit, targetTile) {
+        if (this.scene.gameOver || !unit?.isAlive) return;
         this.clearHighlights();
 
         if (this.scene.fogOfWar) {
@@ -38,6 +40,8 @@ export class MovementManager {
                 this.scene.unitManager.getUnits()
             );
         }
+
+        if (this.scene.gameOver) return;
 
         if (unit.type === 'player') {
             if (unit.actionsLeft > 0) {
