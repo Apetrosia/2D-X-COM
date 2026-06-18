@@ -109,6 +109,17 @@ export class SupportEnemyAI {
             return null;
 
         decision.target.applyBuff(this._getBuffParams(decision.buffType));
+        const names = {
+            speed: 'скорость',
+            attack: 'атаку',
+            extra_turn: 'доп. ход',
+        };
+        supportUnit.scene.actionLog?.addMessage(
+            `${supportUnit.name} усилил ${decision.target.name}: ${names[decision.buffType]}`,
+            'enemyTurn',
+            [supportUnit, decision.target]
+        );
+
         return decision;
     }
 

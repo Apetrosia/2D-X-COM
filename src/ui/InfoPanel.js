@@ -206,7 +206,12 @@ export class InfoPanel {
         const margin = 20;
 
         if (sprite.x < 400 && sprite.y < 400) {
-            this.container.setPosition(1280 - panelWidth - margin, 720 - panelHeight - margin);
+            const logBounds = this.scene.actionLog?.getReservedRect();
+            const y = logBounds
+                ? Phaser.Math.Clamp(logBounds.top - panelHeight - 12, margin, 720 - panelHeight - margin)
+                : 720 - panelHeight - margin;
+
+            this.container.setPosition(1280 - panelWidth - margin, y);
         } else {
             this.container.setPosition(margin, margin);
         }

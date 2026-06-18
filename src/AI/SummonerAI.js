@@ -62,5 +62,10 @@ export class SummonerAI {
         summoner.scene.unitManager.allUnits.push(unit);
 
         summoner.summonedUnits += 1;
+        summoner.scene.actionLog?.addMessage(
+            `${summoner.name} призвал ${unit.name}`,
+            'enemyTurn',
+            [summoner, unit]
+        );
     }
 }

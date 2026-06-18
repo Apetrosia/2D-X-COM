@@ -14,12 +14,40 @@ export class CombatManager {
         };
     }
 
+    _getAttackMessage(attacker, defender, kind = 'ranged') {
+        if (kind === 'sniper') {
+            return `${attacker.name} выстрелил в ${defender.name}`;
+        }
+
+        if (kind === 'melee') {
+            return attacker.type === 'enemy'
+                ? `Враг атаковал ${defender.name}`
+                : `${attacker.name} атаковал вблизи ${defender.name}`;
+        }
+
+        return attacker.type === 'enemy'
+            ? `Враг атаковал ${defender.name}`
+            : `${attacker.name} выстрелил в ${defender.name}`;
+    }
+
+    _applyDamage(defender, amount, attacker, color = '#ef4444', logText = null, logType = 'damage') {
+        defender.hp -= amount;
+        defender.lastAttacker = attacker;
+        this.showFloatingText(defender, `-${amount}`, color);
+        this.scene.actionLog?.addMessage(logText ?? `${defender.name} получил ${amount} урона`, logType, [attacker, defender]);
+
+        if (defender.hp <= 0) {
+            this.unitManager.killUnit(defender);
+        }
+    }
+
     performRangedAttack(attacker, defender) {
 
         this.scene.combatVFX.playBulletShot(
             attacker,
             defender
         );
+        this.scene.actionLog?.addMessage(this._getAttackMessage(attacker, defender), 'attack', [attacker, defender]);
         const { total: effectiveDefense, lowBonus, highBonus } = this._getEffectiveDefense(attacker, defender);
         const totalCover = lowBonus + highBonus;
 
@@ -27,16 +55,14 @@ export class CombatManager {
         const hitChance = Phaser.Math.Clamp(baseAcc, 10, 95);
         if (Math.random() * 100 < hitChance) {
             const dmg = Math.max(1, attacker.attack - Math.floor(effectiveDefense * 0.3));
-            defender.hp -= dmg;
-            defender.lastAttacker = attacker;
-            this.showFloatingText(defender, `-${dmg}`, '#ef4444');
+            this._applyDamage(defender, dmg, attacker);
             if (totalCover > 0) {
                 const coverType = highBonus > 0 ? '🏛️ Укрытие!' : '🛡️ Укрытие!';
                 this.showFloatingText(defender, coverType, '#22d3ee', -15);
             }
-            if (defender.hp <= 0) this.unitManager.killUnit(defender);
         } else {
             this.showFloatingText(defender, 'Промах', '#94a3b8');
+            this.scene.actionLog?.addMessage(`${attacker.name} промахнулся`, 'miss', [attacker, defender]);
         }
     }
 
@@ -45,6 +71,7 @@ export class CombatManager {
             attacker,
             defender
         );
+        this.scene.actionLog?.addMessage(this._getAttackMessage(attacker, defender, 'sniper'), 'attack', [attacker, defender]);
         // Снайпер частично игнорирует укрытия
         // У низкого укрытия будет +1 к защите вместо +3
         // У высокого укрытия +7 к защите вместо +10
@@ -58,16 +85,14 @@ export class CombatManager {
         const baseAcc = attacker.accuracy + 15 - (effectiveDefense * 0.5);
         if (Math.random() * 100 < Phaser.Math.Clamp(baseAcc, 20, 99)) {
             const dmg = Math.max(2, attacker.attack - Math.floor(effectiveDefense * 0.2));
-            defender.hp -= dmg;
-            defender.lastAttacker = attacker;
-            this.showFloatingText(defender, `-${dmg}`, '#ef4444');
+            this._applyDamage(defender, dmg, attacker);
             if (totalCover > 0) {
                 const coverType = highBonus > 0 ? '🏛️ Укрытие!' : '🛡️ Укрытие!';
                 this.showFloatingText(defender, coverType, '#22d3ee', -15);
             }
-            if (defender.hp <= 0) this.unitManager.killUnit(defender);
         } else {
             this.showFloatingText(defender, 'Промах', '#94a3b8');
+            this.scene.actionLog?.addMessage(`${attacker.name} промахнулся`, 'miss', [attacker, defender]);
         }
     }
 
@@ -76,18 +101,19 @@ export class CombatManager {
             attacker,
             defender
         );
+        this.scene.actionLog?.addMessage(this._getAttackMessage(attacker, defender, 'melee'), 'attack', [attacker, defender]);
         const dmg = Math.floor(attacker.attack * 1.5) - Math.floor(defender.defense * 0.3);
         const finalDmg = Math.max(2, dmg);
-        defender.hp -= finalDmg;
-        defender.lastAttacker = attacker;
-        this.showFloatingText(defender, `-${finalDmg}`, '#ef4444');
-        if (defender.hp <= 0) this.unitManager.killUnit(defender);
+        this._applyDamage(defender, finalDmg, attacker);
     }
 
     performHeal(medic, patient) {
         const heal = 25;
+        const previousHp = patient.hp;
         patient.hp = Math.min(patient.maxHp, patient.hp + heal);
-        this.showFloatingText(patient, `+${heal}`, '#22c55e');
+        const healed = patient.hp - previousHp;
+        this.showFloatingText(patient, `+${healed}`, '#22c55e');
+        this.scene.actionLog?.addMessage(`${medic.name} вылечил ${patient.name} на ${healed} HP`, 'heal', [medic, patient]);
     }
 
     showFloatingText(unit, text, color, offsetY = 0) {
@@ -108,6 +134,7 @@ export class CombatManager {
         if (!attacker.pickedUpGrenade) return;
 
         attacker.pickedUpGrenade = false;
+        this.scene.actionLog?.addMessage(`${attacker.name} бросил гранату`, 'attack', [attacker]);
 
         const { x, y } = this.scene.tilemap.gridToWorld(centerTile.gridX, centerTile.gridY);
         this.scene.combatVFX.playExplosion(x, y);
@@ -127,12 +154,13 @@ export class CombatManager {
         const GRENADE_DAMAGE = 20;
         affectedTiles.forEach(tile => {
             if (tile.unit && tile.unit.isAlive && tile.unit !== attacker) {
-                tile.unit.hp -= GRENADE_DAMAGE;
-                tile.unit.lastAttacker = attacker;
-                this.showFloatingText(tile.unit, `-${GRENADE_DAMAGE}`, '#ff8800');
-                if (tile.unit.hp <= 0) {
-                    this.unitManager.killUnit(tile.unit);
-                }
+                this._applyDamage(
+                    tile.unit,
+                    GRENADE_DAMAGE,
+                    attacker,
+                    '#ff8800',
+                    `Граната нанесла ${GRENADE_DAMAGE} урона ${tile.unit.name}`
+                );
             }
         });
 
