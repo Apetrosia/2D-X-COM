@@ -48,6 +48,7 @@ export class TurnManager {
     startPlayerPhase() {
         if (this.scene.gameOver) return;
         this.scene.phase = 'player';
+        this.scene.actionLog?.addMessage('Начался ход игрока', 'playerTurn');
         this.scene.unitManager.getPlayerUnits().forEach(u => u.resetActions());
         this.scene.uiManager.updateHelpText();
     }
@@ -55,6 +56,7 @@ export class TurnManager {
     startEnemyPhase() {
         if (this.scene.gameOver) return;
         this.scene.phase = 'enemy';
+        this.scene.actionLog?.addMessage('Начался ход противника', 'enemyTurn');
         this.scene.uiManager.updateHelpText();
         this.scene.unitManager.getEnemyUnits().forEach(e => e.resetActions());
         this.scene.time.delayedCall(500, () => this.processEnemyTurn());

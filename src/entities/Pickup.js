@@ -21,6 +21,11 @@ export class Pickup {
             if (actualHeal > 0 && this.scene.combatManager) {
                 this.scene.combatManager.showFloatingText(unit, `+${actualHeal} HP`, '#22c55e');
             }
+
+            const logText = actualHeal > 0
+                ? `${unit.name} подобрал аптечку и восстановил ${actualHeal} HP`
+                : `${unit.name} подобрал аптечку`;
+            this.scene.actionLog?.addMessage(logText, 'heal', [unit]);
         }
 
         if (this.type === 'attack_boost') {
@@ -29,6 +34,8 @@ export class Pickup {
             if (this.scene.combatManager) {
                 this.scene.combatManager.showFloatingText(unit, '+5 ATK', '#f59e0b');
             }
+
+            this.scene.actionLog?.addMessage(`${unit.name} подобрал усиление атаки`, 'attack', [unit]);
         }
 
         if (this.type === 'grenade') {
@@ -37,6 +44,8 @@ export class Pickup {
             if (this.scene.combatManager) {
                 this.scene.combatManager.showFloatingText(unit, '💣 Граната!', '#ff8800');
             }
+
+            this.scene.actionLog?.addMessage(`${unit.name} подобрал гранату`, 'attack', [unit]);
         }
 
         this._destroy();

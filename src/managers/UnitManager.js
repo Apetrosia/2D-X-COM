@@ -875,6 +875,11 @@ export class UnitManager {
     }
 
     killUnit(unit) {
+        if (!unit._deathLogged) {
+            this.scene.actionLog?.addMessage(`${unit.name} погиб`, 'death', [unit]);
+            unit._deathLogged = true;
+        }
+
         unit.hp = 0;
         unit.actionsLeft = 0;
         unit.setTile(null);

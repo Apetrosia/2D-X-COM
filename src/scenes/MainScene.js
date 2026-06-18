@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { InfoPanel } from '../ui/InfoPanel.js';
+import { ActionLogPanel } from '../ui/ActionLogPanel.js';
 import { WorldBlackboard } from '../services/worldBlackboard.js';
 import { SupportEnemyAI } from '../services/supportEnemyAI.js';
 import { TilemapService } from '../services/tilemapService.js';
@@ -215,6 +216,8 @@ export class MainScene extends Phaser.Scene {
     }
 
     createUI() {
+        this.actionLog = new ActionLogPanel(this);
+        this.actionLog.addMessage('Начался ход игрока', 'playerTurn');
         this.infoPanel = new InfoPanel(this);
         this.uiManager.createHelpText();
     }
