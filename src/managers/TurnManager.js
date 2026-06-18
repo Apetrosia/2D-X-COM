@@ -5,6 +5,7 @@ export class TurnManager {
     }
 
     endUnitTurn(unit) {
+        if (this.scene.gameOver) return;
         unit.deselect();
         this.scene.movementManager.clearHighlights();
         this.scene.targetManager.clearTargetHighlights();
@@ -17,6 +18,7 @@ export class TurnManager {
     }
 
     skipUnitTurn() {
+        if (this.scene.gameOver) return;
         if (this.scene.selectedUnit) {
             this.scene.targetManager.setUnitsInteractive(true);
             this.scene.selectedUnit.endTurn();
@@ -25,6 +27,7 @@ export class TurnManager {
     }
 
     clearSelection() {
+        if (this.scene.gameOver) return;
         if (this.scene.selectedUnit) {
             this.scene.selectedUnit.deselect();
             this.scene.movementManager.clearHighlights();
@@ -39,6 +42,7 @@ export class TurnManager {
     }
 
     checkEndPlayerPhase() {
+        if (this.scene.gameOver) return;
         const playerUnits = this.scene.unitManager.getPlayerUnits();
         if (!playerUnits.some(u => u.hasActions())) {
             this.startEnemyPhase();
@@ -47,6 +51,7 @@ export class TurnManager {
 
     startPlayerPhase() {
         if (this.scene.gameOver) return;
+        this.scene.registerNewRound?.();
         this.scene.phase = 'player';
         this.scene.unitManager.getPlayerUnits().forEach(u => u.resetActions());
         this.scene.uiManager.updateHelpText();
@@ -57,7 +62,9 @@ export class TurnManager {
         this.scene.phase = 'enemy';
         this.scene.uiManager.updateHelpText();
         this.scene.unitManager.getEnemyUnits().forEach(e => e.resetActions());
-        this.scene.time.delayedCall(500, () => this.processEnemyTurn());
+        this.scene.time.delayedCall(500, () => {
+            if (!this.scene.gameOver) this.processEnemyTurn();
+        });
     }
 
     processEnemyTurn() {
@@ -83,13 +90,18 @@ export class TurnManager {
         if (this.scene.gameOver) return;
 
         this.scene.aiOrchestrator.processAIActions(enemy, () => {
+            if (this.scene.gameOver) return;
             // Повторный ход
             if (enemy.consumeExtraTurn()) {
-                this.scene.time.delayedCall(300, () => this.enemyAct(enemy));
+                this.scene.time.delayedCall(300, () => {
+                    if (!this.scene.gameOver) this.enemyAct(enemy);
+                });
                 return;
             }
             enemy.endTurn();
-            this.scene.time.delayedCall(300, () => this.processEnemyTurn());
+            this.scene.time.delayedCall(300, () => {
+                if (!this.scene.gameOver) this.processEnemyTurn();
+            });
         });
     }
 

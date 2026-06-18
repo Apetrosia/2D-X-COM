@@ -15,6 +15,10 @@ export class AIOrchestrator {
     }
 
     processAIActions(enemy, onComplete) {
+        if (this.scene.gameOver || !enemy?.isAlive) {
+            onComplete?.();
+            return false;
+        }
 
         const chosenController = this.getAIForEnemy(enemy);
 
@@ -56,11 +60,16 @@ export class AIOrchestrator {
         executeNext();
 
         function executeNext() {
+            if (scene.gameOver || !enemy?.isAlive) return;
 
             const action =
                 plan.actions[currentActionIndex];
 
             currentActionIndex++;
+            if (!action) {
+                onComplete();
+                return;
+            }
 
             switch (action.type) {
 
@@ -114,11 +123,14 @@ export class AIOrchestrator {
             }
 
             if (currentActionIndex >= plan.actions.length) {
+                if (scene.gameOver) return;
                 onComplete();
                 return;
             }
-            else {
-                scene.time.delayedCall(300, () => executeNext());
+            else if (!scene.gameOver) {
+                scene.time.delayedCall(300, () => {
+                    if (!scene.gameOver) executeNext();
+                });
             }
         }
     }
