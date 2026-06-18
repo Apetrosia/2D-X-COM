@@ -41,6 +41,7 @@ export class MainScene extends Phaser.Scene {
             rounds: 1,
             survivorBonus: 0,
             victoryBonus: 0,
+            speedBonus: 0,
             defeatPenalty: 0
         };
         this.resultOverlay = null;
@@ -367,14 +368,16 @@ export class MainScene extends Phaser.Scene {
     calculateBattleResult(isVictory) {
         const alivePlayers = this.unitManager.getPlayerUnits(true).length;
         const killScore = this.battleStats.killScore;
-        const survivorBonus = isVictory ? alivePlayers * 25 : 0;
+        const survivorBonus = isVictory ? alivePlayers * 50 : 0;
         const victoryBonus = isVictory ? 100 : 0;
-        const scoreBeforePenalty = killScore + survivorBonus + victoryBonus;
+        const speedBonus = isVictory ? Math.max(0, 60 - (this.battleStats.rounds - 1) * 5) : 0;
+        const scoreBeforePenalty = killScore + survivorBonus + victoryBonus + speedBonus;
         const finalScore = isVictory ? scoreBeforePenalty : Math.floor(killScore * 0.5);
         const defeatPenalty = isVictory ? 0 : killScore - finalScore;
 
         this.battleStats.survivorBonus = survivorBonus;
         this.battleStats.victoryBonus = victoryBonus;
+        this.battleStats.speedBonus = speedBonus;
         this.battleStats.defeatPenalty = defeatPenalty;
 
         const statsRows = [
@@ -387,12 +390,13 @@ export class MainScene extends Phaser.Scene {
         if (isVictory) {
             statsRows.push(
                 { label: 'Бонус за победу', value: `+${victoryBonus}`, color: '#22d3ee', important: true },
-                { label: 'Бонус за выживших', value: `+${survivorBonus}`, color: '#22c55e', important: true }
+                { label: 'Бонус за выживших', value: `+${survivorBonus}`, color: '#22c55e', important: true },
+                { label: 'Бонус за скорость', value: `+${speedBonus}`, color: '#a78bfa', important: true }
             );
         } else {
             statsRows.push({
                 label: 'Штраф за поражение',
-                value: `-${defeatPenalty} (-50%)`,
+                value: defeatPenalty > 0 ? `-${defeatPenalty} (-50%)` : '0 (-50%)',
                 color: '#ef4444',
                 important: true
             });
@@ -403,7 +407,7 @@ export class MainScene extends Phaser.Scene {
             title: isVictory ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ',
             reason: isVictory ? 'Все враги уничтожены' : 'Все бойцы потеряны',
             finalScore,
-            rating: this.getRating(finalScore),
+            rating: this.getRating(finalScore, isVictory, alivePlayers, this.battleStats.rounds),
             statsRows
         };
     }
@@ -434,12 +438,39 @@ export class MainScene extends Phaser.Scene {
         this.scoreText?.setText(`Очки: ${this.score}`);
     }
 
-    getRating(score) {
-        if (score >= 300) return { letter: 'S', color: '#facc15' };
-        if (score >= 220) return { letter: 'A', color: '#22d3ee' };
-        if (score >= 150) return { letter: 'B', color: '#22c55e' };
-        if (score >= 80)  return { letter: 'C', color: '#eab308' };
-        return            { letter: 'D', color: '#ef4444' };
+    getRating(score, isVictory, alivePlayers, rounds) {
+        const colors = {
+            S: '#facc15',
+            A: '#22d3ee',
+            B: '#22c55e',
+            C: '#eab308',
+            D: '#ef4444'
+        };
+
+        if (!isVictory) return { letter: 'D', color: colors.D };
+
+        let letter = 'D';
+        if (score >= 380) letter = 'S';
+        else if (score >= 300) letter = 'A';
+        else if (score >= 220) letter = 'B';
+        else if (score >= 120) letter = 'C';
+
+        if (alivePlayers < 3) letter = this.limitRating(letter, 'A');
+        if (alivePlayers < 2) letter = this.limitRating(letter, 'B');
+        if (alivePlayers < 1) letter = this.limitRating(letter, 'D');
+
+        if (rounds > 20) letter = this.limitRating(letter, 'C');
+        else if (rounds > 16) letter = this.limitRating(letter, 'B');
+        else if (rounds > 12) letter = this.limitRating(letter, 'A');
+
+        return { letter, color: colors[letter] };
+    }
+
+    limitRating(letter, maxLetter) {
+        const ratingOrder = ['D', 'C', 'B', 'A', 'S'];
+        const currentIndex = ratingOrder.indexOf(letter);
+        const maxIndex = ratingOrder.indexOf(maxLetter);
+        return ratingOrder[Math.min(currentIndex, maxIndex)];
     }
 
     showGameResult(result) {
